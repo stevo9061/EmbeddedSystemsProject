@@ -1,0 +1,2 @@
+WiFi_Click_lib.c:28:6:wifi_click_init	8	static
+WiFi_Click_lib.c:56:6:wifi_click_send_test	136	static

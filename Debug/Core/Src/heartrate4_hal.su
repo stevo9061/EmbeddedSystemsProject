@@ -1,0 +1,5 @@
+heartrate4_hal.c:117:6:hal_delay	16	static
+heartrate4_hal.c:131:5:hal_hr4_init	4	static
+heartrate4_hal.c:204:5:hal_hr4_write	24	static
+heartrate4_hal.c:259:5:hal_hr4_read	24	static
+heartrate4_hal.c:332:5:hal_hr4_transfer	40	static
