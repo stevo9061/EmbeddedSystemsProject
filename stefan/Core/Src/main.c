@@ -161,6 +161,7 @@ int main(void)
 
 	//connect to the wifi
 	wifi_click_init();
+	printf("nach wifi_init \n");
 
   /* USER CODE END 2 */
 
@@ -454,7 +455,7 @@ void StartChipTemp(void *argument)
 
 
 
-    osDelay(1);
+    osDelay(1500);
   }
   /* USER CODE END 5 */
 }
@@ -473,7 +474,7 @@ void wifi_click_tx_func(void *argument)
   for(;;)
   {
 		wifi_click_send_test();
-		osDelay(2000);
+		osDelay(1000);
   }
   /* USER CODE END wifi_click_tx_func */
 }
