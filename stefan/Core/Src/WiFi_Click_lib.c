@@ -62,8 +62,8 @@ void wifi_click_send_test(void) {
 	char TEST_MSG[] = "POST /post-esp-data.php HTTP/1.1\r\n"
 						      "Host: 192.168.149.221\r\n"
 						      "Content-Type: application/x-www-form-urlencoded\r\n"
-						      "Content-Length: 79\r\n\r\n"
-						      "api_key=tPmAT5Ab3j7F9&sensor=BME280&location=Office&value1=24.75&value2=49.54\r\n";
+						      "Content-Length: 23\r\n\r\n"
+						      "temp=38&heart_rate=96\r\n";
 	char AT_CIPSEND_MSG[20];
 
 	//get length
