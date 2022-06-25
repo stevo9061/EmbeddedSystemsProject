@@ -61,7 +61,7 @@ void wifi_click_send_test(float chipTemp) {
 	char AT_CIPCLOSE[]="AT+CIPCLOSE\r\n"; //close TCP connection string
 //	char TEST_MSG[]="A big brown fox jumps over...\r\n";  //prepare string to be send - just a test message  //TODO: DELETE
 
-     //HTTP-Header
+     //HTTP-Header Example
 /*	 "POST /post-esp-data.php HTTP/1.1\r\n"
 	 "Host: 192.168.149.221\r\n"
 	 "Content-Type: application/x-www-form-urlencoded\r\n"
@@ -103,17 +103,12 @@ void wifi_click_send_test(float chipTemp) {
 
 
 
+// TODO: Add better Wifi-Init Implementation
 
-
-
-
-
-	//Content-Length anpassen
-	// Und /r/n nicht vergessen
 	char AT_CIPSEND_MSG[20];
 
 	//get length
-//	int lenghtOfData = strlen(TEST_MSG);
+//	int lenghtOfData = strlen(TEST_MSG); //TODO: DELETE
 	int lenghtOfData = strlen(buf);
 
 

@@ -433,9 +433,9 @@ void StartChipTemp(void *argument)
   /* Infinite loop */
   for(;;)
   {
+//TODO: Add third task and implement heart rate sensor
 
-
-	  printf("Task 1 \n");
+	  printf("Task 1 is processing..\n");
 
 
 	  // I chose timeout duration '5000' to have enough time to type a command for update interval.
