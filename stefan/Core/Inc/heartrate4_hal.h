@@ -10,8 +10,7 @@
 #ifndef I2C_HAL_H_
 #define I2C_HAL_H_
 
-#include <stdint.h>
-
+#include "main.h"
 /* 			Functions
  ******************************************************************************/
 #ifdef __cplusplus

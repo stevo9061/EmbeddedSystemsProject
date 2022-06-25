@@ -31,6 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "WiFi_Click_lib.h"
+#include "heartrate4_hal.h"
 
 /* USER CODE END Includes */
 

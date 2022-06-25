@@ -133,7 +133,7 @@ int _write(int file, char *ptr, int len)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-//TODO: CAll void hr4_init(); first!!
+	hr4_set_registers(hi2c1);
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -161,7 +161,8 @@ int main(void)
 
 	//connect to the wifi
 	wifi_click_init();
-	printf("nach wifi_init \n");
+//	printf("nach wifi_init \n"); TODO: DELETE
+
 
   /* USER CODE END 2 */
 
@@ -473,7 +474,7 @@ void wifi_click_tx_func(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		wifi_click_send_test();
+//		wifi_click_send_test();
 		osDelay(1000);
   }
   /* USER CODE END wifi_click_tx_func */

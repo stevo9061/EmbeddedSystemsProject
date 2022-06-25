@@ -218,6 +218,8 @@ void hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART
 
 	float floatSum = buf[0] + 0.0625 * buf[1];
 
+	// Send the Chip-Temperature to our Webserver, and save it in our Database
+	wifi_click_send_test(floatSum);
 
 
 

@@ -8,7 +8,7 @@
 #ifndef INC_WIFI_CLICK_LIB_H_
 #define INC_WIFI_CLICK_LIB_H_
 
-void wifi_click_init(void);
-void wifi_click_send_test(void);
+void wifi_click_init();
+void wifi_click_send_test(float chipTemp);
 
 #endif /* INC_WIFI_CLICK_LIB_H_ */
