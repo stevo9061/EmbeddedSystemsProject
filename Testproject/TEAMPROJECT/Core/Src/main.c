@@ -80,6 +80,8 @@ TIM_HandleTypeDef htim7;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+unsigned int tim_elapsed = 0; // Basically our global clock/counter; counts upwards in 50ms steps
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -213,7 +215,7 @@ int main(void)
 
 
 
-		hr4_is_new_fifo_data_ready(hi2c1); // 1 returns
+		//hr4_is_new_fifo_data_ready(hi2c1); // 1 returns
 
 
 
@@ -304,14 +306,17 @@ int main(void)
 
 
 					// Start timer
-//					HAL_TIM_Base_Start(&htim7);
+          if(HAL_TIM_Base_GetState(&htim7) == HAL_TIM_STATE_READY) {
+            HAL_TIM_Base_Start_IT(&htim7);
+          }
 
 
 
 
 					// Get current time
-//					timer_val = __HAL_TIM_GET_COUNTER(&htim7);
-					timer_val = HAL_GetTick();
+					timer_val = tim_elapsed;
+					//timer_val = __HAL_TIM_GET_COUNTER(&htim7);
+//					timer_val = HAL_GetTick();
 
 					// Get current time (microseconds)
 					//				timer_val = __HAL_TIM_GET_COUNTER(&htim6);
@@ -326,7 +331,7 @@ int main(void)
 					{
 						Error_Handler();
 					}
-					HAL_Delay(50);
+					HAL_Delay(500);
 
 
 
@@ -334,13 +339,13 @@ int main(void)
 					//				lastBeat = HAL_GetTick(); // Auch 4 Sekunden
 					lastBeat = timer_val;
 
-					beatsPerMinute = 60 / (delta / 10000.0);					//Calculating the BPM
+					beatsPerMinute = 60 / (delta / 1000.0);					//Calculating the BPM
 
 					if (beatsPerMinute < 255 && beatsPerMinute > 20)
 					{
 						rates[rateSpot++] = (uint8_t)beatsPerMinute;
 						rateSpot %= RATE_SIZE; //Wrap variable
-						if(rates[1] != 0)
+						if(rates[3] != 0)
 						{
 							iad = false;
 
@@ -413,13 +418,14 @@ int main(void)
 		 */
 
 		// Nonblocking Function
-		if (HAL_UART_Receive_IT(&huart2, ringBuffer, BUFFERSIZE) == HAL_ERROR)
-		{
-			Error_Handler();
-		}
+//		if (HAL_UART_Receive_IT(&huart2, ringBuffer, BUFFERSIZE) == HAL_ERROR)
+//		{
+//			Error_Handler();
+//		}
+//
+//		HAL_Delay(500);
 
 		HAL_Delay(500);
-
 
 
 
@@ -624,6 +630,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  // Here the magic happens with our custom clock (which just is a counter)
+  // Because we have 32MHZ and use a pre-scaler of 32000 that mans our clock speed is 1ms
+  // However because I set the period to 9 the interrupt fires every 10ms and the counter therefore increased in 10ms steps
+  if (htim->Instance == TIM7) {
+    tim_elapsed += htim->Instance -> ARR + 1; // 9 + 1 = 10 ms to add to the counter
+  }
+}
 
 
 /* USER CODE END 4 */
