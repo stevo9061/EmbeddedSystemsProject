@@ -134,6 +134,8 @@ int main(void)
 	//connect to the wifi
 	wifi_click_init();
 
+	wifi_click_send_test(20);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -380,7 +382,7 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   init_8x8leds(); // basically calling the config of max7219
-  //printf("Hello from Task1!\n");
+  printf("Hello from Task1!\n");
   /* Infinite loop */
   for(;;)
   {

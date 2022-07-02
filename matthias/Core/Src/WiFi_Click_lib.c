@@ -17,7 +17,7 @@
 //prepared strings with AT commands to be sent
 char AT_TEST[] = "AT\r\n";
 char AT_MODESEL[] = "AT+CWMODE=1\r\n";
-  char AT_SETIPSTATIC[] = "AT+CIPSTA=\"192.168.97.222\"\r\n";
+  char AT_SETIPSTATIC[] = "AT+CIPSTA=\"192.168.0.53\"\r\n";
 //char AT_WIFICONNECT[] = "AT+CWJAP=\"Magenta-6HQ256\",\"Password\"\r\n"; //replace SSID with the network name and PASSWORD with wifi password
 char AT_WIFICONNECT[] = "AT+CWJAP=\"AndroidAP6156\",\"Balou1407%\"\r\n";
 
@@ -44,7 +44,7 @@ void wifi_click_init(void) {
 	HAL_UART_Transmit(&huart1, (uint8_t*)AT_WIFICONNECT, strlen(AT_WIFICONNECT), HAL_MAX_DELAY);
 	HAL_UART_Receive(&huart1,(uint8_t*)RX_Buffer,500,5000);
 	HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
-	HAL_Delay(5000);
+	HAL_Delay(20000);
 
 	memset(RX_Buffer,0,sizeof(RX_Buffer));
 
@@ -55,22 +55,8 @@ void wifi_click_init(void) {
 
 void wifi_click_send_test(float chipTemp) {
 
-//  printf("starte wifi_click_send_test...\n");  //TODO: DELETE
-//	char AT_CIPSTART[]="AT+CIPSTART=\"TCP\",\"192.168.1.69\",6000\r\n";  //TODO: DELETE
-	char AT_CIPSTART[]="AT+CIPSTART=\"TCP\",\"192.168.97.221\",80\r\n";
+	char AT_CIPSTART[]="AT+CIPSTART=\"TCP\",\"192.168.0.218\",80\r\n";
 	char AT_CIPCLOSE[]="AT+CIPCLOSE\r\n"; //close TCP connection string
-//	char TEST_MSG[]="A big brown fox jumps over...\r\n";  //prepare string to be send - just a test message  //TODO: DELETE
-
-     //HTTP-Header Example
-/*	 "POST /post-esp-data.php HTTP/1.1\r\n"
-	 "Host: 192.168.149.221\r\n"
-	 "Content-Type: application/x-www-form-urlencoded\r\n"
-	 "Content-Length: 23\r\n\r\n"
-	 Attention: The content length must be correct, otherwise no successful HTTP post request can be sent
-
-     //HTTP-Body
-	 "temp=38&heart_rate=96\r\n";
-*/
 
 	char buf[155] = {0};
 
@@ -90,27 +76,17 @@ void wifi_click_send_test(float chipTemp) {
 	strcat(httpBody1, httpBody2);
 	int lengthBody = strlen(httpBody1)+2;
 
-	 //TODO: DELETE //	sprintf(dataToSend2, "GET /sensor_logger/data.php?humidity=%s&temperature=%s&ID=%s HTTP/1.1\r\nHost: 192.168.0.10\r\n\r\n", strToPrintH1, strToPrintT1, deviceID);
+	char *get_request = "GET /fetch-latest-data.php HTTP/1.1\r\nHost: 192.168.0.218\r\n\r\n";
 
-
-		snprintf(buf, 180, "POST /post-esp-data.php HTTP/1.1\r\n"
-	 	  	  	     "Host: 192.168.149.221\r\n"
-	 	  	  	     "Content-Type: application/x-www-form-urlencoded\r\n"
-	                 "Content-Length: %d\r\n\r\n"
-					 "%s\r\n", lengthBody, httpBody1);
-
-//	    printf ("%s\r\n",httpBody1);  //TODO: DELETE
-
-
-
-// TODO: Add better Wifi-Init Implementation
+//		snprintf(buf, 180, "POST /post-esp-data.php HTTP/1.1\r\n"
+//	 	  	  	     "Host: 192.168.0.218\r\n"
+//	 	  	  	     "Content-Type: application/x-www-form-urlencoded\r\n"
+//	                 "Content-Length: %d\r\n\r\n"
+//					 "%s\r\n", lengthBody, httpBody1);
 
 	char AT_CIPSEND_MSG[20];
 
-	//get length
-//	int lenghtOfData = strlen(TEST_MSG); //TODO: DELETE
-	int lenghtOfData = strlen(buf);
-
+	int lenghtOfData = strlen(get_request); // buf
 
 	//prepare string with the length of data to be expected by WiFi-Click
 	sprintf(AT_CIPSEND_MSG, "AT+CIPSEND=%d\r\n", lenghtOfData);
@@ -119,20 +95,32 @@ void wifi_click_send_test(float chipTemp) {
 	//establish TCP connection
 	HAL_UART_Transmit(&huart1, (uint8_t*)AT_CIPSTART, strlen(AT_CIPSTART), HAL_MAX_DELAY);
 	osDelay(1000);
+  HAL_UART_Receive(&huart1,(uint8_t*)RX_Buffer,500,5000);
+  osDelay(5000);
+  HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
+  osDelay(20000);
 
 	//let esp32 know how much data to expect
 	HAL_UART_Transmit(&huart1, (uint8_t*)AT_CIPSEND_MSG, strlen(AT_CIPSEND_MSG), HAL_MAX_DELAY);
 	osDelay(1000);
+  HAL_UART_Receive(&huart1,(uint8_t*)RX_Buffer,500,5000);
+  osDelay(5000);
+  HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
+  osDelay(20000);
 
 	// send data via wifi
-//	HAL_UART_Transmit(&huart1, (uint8_t*)TEST_MSG, strlen(TEST_MSG), HAL_MAX_DELAY);
-	HAL_UART_Transmit(&huart1, (uint8_t*)buf, strlen(buf), HAL_MAX_DELAY);
-
-//	osDelay(1000);
-	osDelay(5000);
+	HAL_UART_Transmit(&huart1, (uint8_t*)get_request, strlen(get_request), HAL_MAX_DELAY);
+	osDelay(10000);
+  HAL_UART_Receive(&huart1,(uint8_t*)RX_Buffer,500,5000);
+  osDelay(5000);
+  HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
+  osDelay(20000);
 
 	//close TCP connection
 	HAL_UART_Transmit(&huart1, (uint8_t*)AT_CIPCLOSE, strlen(AT_CIPCLOSE), HAL_MAX_DELAY);
-//	printf("finish wifi_click_send_test...\n"); //TODO: DELETE
 	osDelay(1000);
+  HAL_UART_Receive(&huart1,(uint8_t*)RX_Buffer,500,5000);
+  osDelay(5000);
+  HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
+  osDelay(20000);
 }
