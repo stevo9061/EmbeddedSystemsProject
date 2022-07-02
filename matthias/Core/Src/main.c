@@ -25,6 +25,7 @@
 #include "stdio.h"
 #include "matrix_funktion.h"
 #include "Font.h"
+#include "WiFi_Click_lib.h"
 
 /* USER CODE END Includes */
 
@@ -126,6 +127,9 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
+
+	//connect to the wifi
+	wifi_click_init();
 
   /* USER CODE END 2 */
 
