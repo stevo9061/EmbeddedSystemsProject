@@ -1,20 +1,20 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2022 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2022 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
@@ -41,6 +41,8 @@ typedef StaticTask_t osStaticThreadDef_t;
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define BUFFERSIZE 11
+#define RATE_SIZE 4							//Increase this for more averaging. 4 is good.
+#define USE_SEM
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,6 +52,8 @@ typedef StaticTask_t osStaticThreadDef_t;
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
+TIM_HandleTypeDef htim7;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
@@ -66,19 +70,25 @@ const osThreadAttr_t ChipTemp_attributes = {
   .stack_size = sizeof(ChipTempBuffer),
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for wifi_click_tx */
-osThreadId_t wifi_click_txHandle;
-uint32_t wifi_click_txBuffer[ 128 ];
-osStaticThreadDef_t wifi_click_txControlBlock;
-const osThreadAttr_t wifi_click_tx_attributes = {
-  .name = "wifi_click_tx",
-  .cb_mem = &wifi_click_txControlBlock,
-  .cb_size = sizeof(wifi_click_txControlBlock),
-  .stack_mem = &wifi_click_txBuffer[0],
-  .stack_size = sizeof(wifi_click_txBuffer),
-  .priority = (osPriority_t) osPriorityLow,
+/* Definitions for HeartBeats */
+osThreadId_t HeartBeatsHandle;
+uint32_t HeartBeatsBuffer[ 512 ];
+osStaticThreadDef_t HeartBeatsControlBlock;
+const osThreadAttr_t HeartBeats_attributes = {
+  .name = "HeartBeats",
+  .cb_mem = &HeartBeatsControlBlock,
+  .cb_size = sizeof(HeartBeatsControlBlock),
+  .stack_mem = &HeartBeatsBuffer[0],
+  .stack_size = sizeof(HeartBeatsBuffer),
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
+/* Definitions for sem_PRODUCE_Sync */
+osSemaphoreId_t sem_PRODUCE_SyncHandle;
+const osSemaphoreAttr_t sem_PRODUCE_Sync_attributes = {
+  .name = "sem_PRODUCE_Sync"
 };
 /* USER CODE BEGIN PV */
+unsigned int tim_elapsed = 0; // Basically our global clock/counter; counts upwards in 50ms steps
 
 /* USER CODE END PV */
 
@@ -88,8 +98,9 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM7_Init(void);
 void StartChipTemp(void *argument);
-void wifi_click_tx_func(void *argument);
+void StartHeartBeats(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -97,8 +108,20 @@ void wifi_click_tx_func(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t ringBuffer[BUFFERSIZE]; // I receive my input from the Hal_Uart_Receive Function
-char *welcome = "\n\radmin@work:~$: ";
+uint8_t ringBuffer[BUFFERSIZE]; // Receive input from the HAL_Uart_Receive() Function
+bool read_f = false;
+bool stop_f = false;
+bool start_f = false;
+bool no_finger_f = true;
+uint32_t red_sample;
+
+uint32_t rates[RATE_SIZE]; 				 // Array of heart rates
+uint32_t rateSpot = 0;
+long lastBeat = 0; 					    // Time at which the last beat occurred
+uint16_t delta = 0;
+float beatsPerMinute;
+uint32_t beatAvg;
+uint16_t timer_val;
 
 // Print given character on UART 2. Translate '\n' to "\r\n" on the fly.
 int __io_putchar(int ch) {
@@ -157,11 +180,16 @@ int main(void)
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   MX_USART1_UART_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
-	//connect to the wifi
-	wifi_click_init();
-//	printf("nach wifi_init \n"); TODO: DELETE
+  // Setup register heart rate module
+  hr4_set_registers(hi2c1);
+
+  // Connect to the wifi
+  wifi_click_init();
+
+  //	printf("nach wifi_init \n"); TODO: DELETE
 
 
   /* USER CODE END 2 */
@@ -170,34 +198,38 @@ int main(void)
   osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
+	/* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of sem_PRODUCE_Sync */
+  sem_PRODUCE_SyncHandle = osSemaphoreNew(1, 1, &sem_PRODUCE_Sync_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
+	/* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
+	/* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
+	/* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of ChipTemp */
   ChipTempHandle = osThreadNew(StartChipTemp, NULL, &ChipTemp_attributes);
 
-  /* creation of wifi_click_tx */
-  wifi_click_txHandle = osThreadNew(wifi_click_tx_func, NULL, &wifi_click_tx_attributes);
+  /* creation of HeartBeats */
+  HeartBeatsHandle = osThreadNew(StartHeartBeats, NULL, &HeartBeats_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+	/* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
+	/* add events, ... */
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
@@ -206,12 +238,12 @@ int main(void)
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	while (1)
+	{
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+	}
   /* USER CODE END 3 */
 }
 
@@ -318,6 +350,44 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 32000 - 1;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 10 - 1;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -419,65 +489,209 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN Header_StartChipTemp */
 /**
-  * @brief  Function implementing the ChipTemp thread.
-  * @param  argument: Not used
-  * @retval None
-  */
+ * @brief  Function implementing the ChipTemp thread.
+ * @param  argument: Not used
+ * @retval None
+ */
 /* USER CODE END Header_StartChipTemp */
 void StartChipTemp(void *argument)
 {
   /* USER CODE BEGIN 5 */
-	  /* USER CODE BEGIN WHILE */
+	/* USER CODE BEGIN WHILE */
 
 
-  /* Infinite loop */
-  for(;;)
-  {
-//TODO: Add third task and implement heart rate sensor
+	/* Infinite loop */
+	for(;;)
+	{
+#ifdef USE_SEM
+	  if(osSemaphoreAcquire(sem_PRODUCE_SyncHandle, 100) ==osOK)
+	  {
+#endif
 
-	  printf("Task 1 is processing..\n");
-
-
-	  // I chose timeout duration '5000' to have enough time to type a command for update interval.
-	 	if (HAL_UART_Receive(&huart2, ringBuffer, BUFFERSIZE, 5000) == HAL_ERROR)
-	 	{
-	 		Error_Handler();
-	 	}else {
-
-	 // Function to send the chip temperature
-     // Expected command is '#t,tempa\n'
-	 		checkInput(hi2c1, huart2, ringBuffer, 10);
-
-	 // Clean the ringbuffer[BUFFERSIZE]
-	 		for(int i = 0; i < BUFFERSIZE; i++) {
-	 			ringBuffer[i] = 0;
-	 		}
-	 	}
+		printf("\nTask 1 is processing..\n");
+	//	osDelay(1000);
 
 
+		// I chose timeout duration '5000' to have enough time to type a command for update interval.
+		if (HAL_UART_Receive(&huart2, ringBuffer, BUFFERSIZE, 5000) == HAL_ERROR)
+		{
+			Error_Handler();
+		}else {
 
-    osDelay(1500);
-  }
+			// Function to send the chip temperature
+			// Expected command is '#t,tempa\n'
+			checkInput(hi2c1, huart2, ringBuffer, 10);
+
+
+			// Clean the ringbuffer[BUFFERSIZE]
+			for(int i = 0; i < BUFFERSIZE; i++) {
+				ringBuffer[i] = 0;
+			}
+		}
+
+#ifdef USE_SEM
+		osSemaphoreRelease(sem_PRODUCE_SyncHandle);
+	  }
+#endif
+
+		osDelay(1000);
+
+
+	}
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_wifi_click_tx_func */
+/* USER CODE BEGIN Header_StartHeartBeats */
 /**
-* @brief Function implementing the wifi_click_tx thread.
+* @brief Function implementing the HeartBeats thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_wifi_click_tx_func */
-void wifi_click_tx_func(void *argument)
+/* USER CODE END Header_StartHeartBeats */
+void StartHeartBeats(void *argument)
 {
-  /* USER CODE BEGIN wifi_click_tx_func */
+  /* USER CODE BEGIN StartHeartBeats */
   /* Infinite loop */
   for(;;)
   {
-//		wifi_click_send_test();
-		osDelay(1000);
+
+
+#ifdef USE_SEM
+	  if(osSemaphoreAcquire(sem_PRODUCE_SyncHandle, 100) ==osOK)
+	  {
+#endif
+
+		printf("Task 2 is processing..\n");
+	//	osDelay(2000);
+
+	  //Fifo is ready -> If an interrupt is set, it would be better to check the interrupt pin
+	  		if(hr4_is_new_fifo_data_ready(hi2c1) != 0) // returns 1 is ready
+	  		{
+	  			read_f = false;
+
+
+	  			// red_sample = Read RED sensor data = check if finger is on sensor
+	  			// Sensor actually only measures whether a finger has just been recognized or a pulse detected. If this is the case, a value > 200k is displayed.
+	  			// What follows now is that we make a time measurement in which time intervals a pulse has occurred. For our purposes, the pulse is measured 4x times.
+	  			red_sample = hr4_read_red(hi2c1);
+
+
+
+	  			// If sample pulse amplitude is under threshold value ( proximity mode )
+	  			if ( red_sample > 0 && red_sample < 32000 )
+	  			{
+	  				stop_f = true;
+
+	  				if ( no_finger_f )
+	  				{
+
+	  					// We do nothing more in this program due to time constraints here.
+	  					char *noPulse ="\r\n -> No pulse was detected <-\r\n";
+
+	  					if (HAL_UART_Transmit(&huart2, (uint8_t *) noPulse, strlen(noPulse), 1000) == HAL_ERROR)
+	  					{
+	  						Error_Handler();
+	  					}
+
+	  				}
+
+	  				no_finger_f = true;
+
+	  			} else if( red_sample != 0) // If finger is detected ( we are in active heart rate mode )
+	  			{
+	  				stop_f = false;
+
+
+	  				bool ratesNotFinishedYet = true;
+
+	  				while (ratesNotFinishedYet) {
+
+
+	  		// Start timer
+	          if(HAL_TIM_Base_GetState(&htim7) == HAL_TIM_STATE_READY) //TODO: Delete Timer, because Timer with interrupt is not working with Rtos
+	          {
+
+	          	HAL_TIM_Base_Start_IT(&htim7);
+
+	          }
+
+
+
+
+	  					// Get current time
+	  					timer_val = tim_elapsed;
+	  					//timer_val = __HAL_TIM_GET_COUNTER(&htim7);
+//	  					timer_val = HAL_GetTick();
+	  					delta = timer_val - lastBeat;					//Measure duration between two beats
+	  					uint8_t str_tmps[50] ="";
+
+
+	  				   osDelay(500);
+
+
+	  					lastBeat = timer_val;
+
+	  					beatsPerMinute = 60 / (delta / 1000.0);					//Calculating the BPM
+
+	  					if (beatsPerMinute < 255 && beatsPerMinute > 20)
+	  					{
+	  						rates[rateSpot++] = (uint8_t)beatsPerMinute;
+	  						rateSpot %= RATE_SIZE; //Wrap variable
+	  						if(rates[3] != 0)
+	  						{
+	  							ratesNotFinishedYet = false;
+
+	  						}
+	  					}
+
+//TODO: Get every time the same Pulse value?
+
+	  				}
+
+	  				//Take average of readings
+	  				beatAvg = 0;
+	  				for (uint8_t x = 0; x < RATE_SIZE ; x++)
+	  				{
+	  					beatAvg += rates[x];
+	  				}
+
+	  				beatAvg /= RATE_SIZE;
+
+
+
+	  				char *pulseValue = "\r\nPulse value: ";
+	  				uint8_t str_tmp[7] ="";
+
+	  				// Print pulse value
+	  				if (HAL_UART_Transmit(&huart2, (uint8_t *) pulseValue, strlen(pulseValue), 1000) == HAL_ERROR)
+	  				{
+	  					Error_Handler();
+	  				}
+
+	  				// Output the value when the finger was detected
+	  				if (HAL_UART_Transmit(&huart2, str_tmp, sprintf((char *) str_tmp, "%d\n\r", (int) beatAvg), 1000) == HAL_ERROR)
+	  				{
+	  					Error_Handler();
+	  				}
+
+
+	  				no_finger_f = false;
+
+	  			}
+	  		}
+
+
+#ifdef USE_SEM
+		osSemaphoreRelease(sem_PRODUCE_SyncHandle);
+	  }
+#endif
+	     osDelay(500);
+
+
+
   }
-  /* USER CODE END wifi_click_tx_func */
+
+  /* USER CODE END StartHeartBeats */
 }
 
 /**
@@ -491,6 +705,13 @@ void wifi_click_tx_func(void *argument)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
+
+	// Here the magic happens with our custom clock (which just is a counter)
+	// Because we have 32MHZ and use a pre-scaler of 32000 that mans our clock speed is 1ms
+	// However because I set the period to 9 the interrupt fires every 10ms and the counter therefore increased in 10ms steps
+	if (htim->Instance == TIM7) {
+		tim_elapsed += htim->Instance -> ARR + 1; // 9 + 1 = 10 ms to add to the counter
+	}
 
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
@@ -508,11 +729,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
+	{
+	}
   /* USER CODE END Error_Handler_Debug */
 }
 
@@ -527,7 +748,7 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
