@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "matrix_funktion.h"
+#include "Font.h"
 
 /* USER CODE END Includes */
 
@@ -336,9 +338,20 @@ static void MX_GPIO_Init(void)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
+  init_8x8leds(); // basically calling the config of max7219
+  //printf("Hello from Task1!\n");
   /* Infinite loop */
   for(;;)
   {
+    for(int i = 0; i < 10; i++)
+        {
+         for(int y = 1; y < 9; y++)
+           {
+             write_register(y, digits[i][y-1]);
+           }
+         HAL_Delay(500); // note to myself: check for optimized delay in between
+         brightness_control(i);
+        }
     osDelay(1);
   }
   /* USER CODE END 5 */
