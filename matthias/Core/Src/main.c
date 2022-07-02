@@ -134,7 +134,9 @@ int main(void)
 	//connect to the wifi
 	wifi_click_init();
 
-	wifi_click_send_test(20);
+	char *data = wifi_click_fetch_data(20);
+	wifi_click_fetch_data(20);
+	wifi_click_fetch_data(20);
 
   /* USER CODE END 2 */
 
