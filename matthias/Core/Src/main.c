@@ -415,10 +415,13 @@ void StartDefaultTask(void *argument)
     }
     osDelay(500);
 
-    int n = heart_rate, reverse = 0, remainder;
+    int n = heart_rate, reverse = 0, remainder, last_digit_zero = false;;
 
     while (n != 0) {
       remainder = n % 10;
+      if(remainder==0) {
+        last_digit_zero = true;
+      }
       reverse = reverse * 10 + remainder;
       n /= 10;
     }
@@ -435,16 +438,51 @@ void StartDefaultTask(void *argument)
       //brightness_control(i);
       value /= 10;
     }
+    if(last_digit_zero) {
+      for(int y = 1; y < 9; y++)
+      {
+        write_register(y, digits[0][y-1]);
+      }
+    }
+    osDelay(500);
 
-//    for(int i = 0; i < 10; i++)
-//    {
-//      for(int y = 1; y < 9; y++)
-//      {
-//        write_register(y, digits[i][y-1]);
-//      }
-//      osDelay(500); // note to myself: check for optimized delay in between
-//      brightness_control(i);
-//    }
+    // Print smiley to indicate temperature is coming now
+    for(int y = 1; y < 9; y++)
+    {
+      write_register(y, special_chars[0][y-1]);
+    }
+    osDelay(500);
+
+    n = temperature;
+    reverse = 0;
+    last_digit_zero=false;
+    while (n != 0) {
+      remainder = n % 10;
+      if(remainder==0) {
+        last_digit_zero = true;
+      }
+      reverse = reverse * 10 + remainder;
+      n /= 10;
+    }
+    // now we have the reverse for temp, so we can printf the first digit first ;)
+    value = reverse;
+    while(value > 0) {
+      int digit = value % 10;
+      for(int y = 1; y < 9; y++)
+      {
+        write_register(y, digits[digit][y-1]);
+      }
+      osDelay(500);
+      value /= 10;
+    }
+    if(last_digit_zero) {
+      for(int y = 1; y < 9; y++)
+      {
+        write_register(y, digits[0][y-1]);
+      }
+    }
+    osDelay(500);
+
   }
   /* USER CODE END 5 */
 }
