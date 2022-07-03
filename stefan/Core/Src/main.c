@@ -82,11 +82,6 @@ const osThreadAttr_t HeartBeats_attributes = {
   .stack_size = sizeof(HeartBeatsBuffer),
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
-/* Definitions for sem_PRODUCE_Sync */
-osSemaphoreId_t sem_PRODUCE_SyncHandle;
-const osSemaphoreAttr_t sem_PRODUCE_Sync_attributes = {
-  .name = "sem_PRODUCE_Sync"
-};
 /* USER CODE BEGIN PV */
 unsigned int tim_elapsed = 0; // Basically our global clock/counter; counts upwards in 50ms steps
 
@@ -200,10 +195,6 @@ int main(void)
   /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
-
-  /* Create the semaphores(s) */
-  /* creation of sem_PRODUCE_Sync */
-  sem_PRODUCE_SyncHandle = osSemaphoreNew(1, 1, &sem_PRODUCE_Sync_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
@@ -369,7 +360,7 @@ static void MX_TIM7_Init(void)
   htim7.Instance = TIM7;
   htim7.Init.Prescaler = 32000 - 1;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 10 - 1;
+  htim7.Init.Period = 2 - 1;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -503,39 +494,8 @@ void StartChipTemp(void *argument)
 	/* Infinite loop */
 	for(;;)
 	{
-#ifdef USE_SEM
-	  if(osSemaphoreAcquire(sem_PRODUCE_SyncHandle, 100) ==osOK)
-	  {
-#endif
 
-		printf("\nTask 1 is processing..\n");
-	//	osDelay(1000);
-
-
-		// I chose timeout duration '5000' to have enough time to type a command for update interval.
-		if (HAL_UART_Receive(&huart2, ringBuffer, BUFFERSIZE, 5000) == HAL_ERROR)
-		{
-			Error_Handler();
-		}else {
-
-			// Function to send the chip temperature
-			// Expected command is '#t,tempa\n'
-			checkInput(hi2c1, huart2, ringBuffer, 10);
-
-
-			// Clean the ringbuffer[BUFFERSIZE]
-			for(int i = 0; i < BUFFERSIZE; i++) {
-				ringBuffer[i] = 0;
-			}
-		}
-
-#ifdef USE_SEM
-		osSemaphoreRelease(sem_PRODUCE_SyncHandle);
-	  }
-#endif
-
-		osDelay(1000);
-
+osDelay(50000); // TODO: Cannot delete TASK 'StartChipTemp'
 
 	}
   /* USER CODE END 5 */
@@ -554,15 +514,6 @@ void StartHeartBeats(void *argument)
   /* Infinite loop */
   for(;;)
   {
-
-
-#ifdef USE_SEM
-	  if(osSemaphoreAcquire(sem_PRODUCE_SyncHandle, 100) ==osOK)
-	  {
-#endif
-#
-		printf("Task 2 is processing..\n");
-	//	osDelay(2000);
 
 	  //Fifo is ready -> If an interrupt is set, it would be better to check the interrupt pin
 	  		if(hr4_is_new_fifo_data_ready(hi2c1) != 0) // returns 1 is ready
@@ -626,7 +577,8 @@ void StartHeartBeats(void *argument)
 	  					uint8_t str_tmps[50] ="";
 
 
-	  				   osDelay(500);
+	  				 //  osDelay(500);
+	  					HAL_Delay(500);
 
 
 	  					lastBeat = timer_val;
@@ -644,9 +596,14 @@ void StartHeartBeats(void *argument)
 	  						}
 	  					}
 
-//TODO: Get every time the same Pulse value?
 
+
+//TODO: Get every time the same Pulse value?
+		//				osDelay(500);
+	  					HAL_Delay(500);
 	  				}
+
+
 
 	  				//Take average of readings
 	  				beatAvg = 0;
@@ -657,10 +614,29 @@ void StartHeartBeats(void *argument)
 
 	  				beatAvg /= RATE_SIZE;
 
+		  			// Get Temperature from chip	//
+		  			int temp = hr4_get_chipTemp(hi2c1, huart2);
+
+		  			uint8_t str_tmp[21] ="";
+		  			char *temperature = "\r\nTemperature: ";
+
+
+					// Print pulse value
+					if (HAL_UART_Transmit(&huart2, (uint8_t *) temperature, strlen(temperature), 1000) == HAL_ERROR)
+					{
+						Error_Handler();
+					}
+		  			// Nonblocking Function
+		  			// Print temperature
+		  			if (HAL_UART_Transmit(&huart2, str_tmp, sprintf((char *) str_tmp, "%d\\n\r", (int) temp), 1000) == HAL_ERROR)
+		  			{
+		  				Error_Handler();
+		  			}
+
 
 
 	  				char *pulseValue = "\r\nPulse value: ";
-	  				uint8_t str_tmp[7] ="";
+	  				uint8_t str_hr[7] ="";
 
 	  				// Print pulse value
 	  				if (HAL_UART_Transmit(&huart2, (uint8_t *) pulseValue, strlen(pulseValue), 1000) == HAL_ERROR)
@@ -669,11 +645,13 @@ void StartHeartBeats(void *argument)
 	  				}
 
 	  				// Output the value when the finger was detected
-	  				if (HAL_UART_Transmit(&huart2, str_tmp, sprintf((char *) str_tmp, "%d\n\r", (int) beatAvg), 1000) == HAL_ERROR)
+	  				if (HAL_UART_Transmit(&huart2, str_hr, sprintf((char *) str_hr, "%d\n\r", (int) beatAvg), 1000) == HAL_ERROR)
 	  				{
 	  					Error_Handler();
 	  				}
 
+		  			// Send the Chip-Temperature to our Webserver, and save it in our Database
+		  			wifi_click_send_test(temp, beatAvg);
 
 	  				no_finger_f = false;
 
@@ -681,11 +659,7 @@ void StartHeartBeats(void *argument)
 	  		}
 
 
-#ifdef USE_SEM
-		osSemaphoreRelease(sem_PRODUCE_SyncHandle);
-	  }
-#endif
-	     osDelay(500);
+
 
 
 

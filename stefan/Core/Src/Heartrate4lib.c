@@ -140,7 +140,7 @@ void hr4_test_partID(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART)
 }
 
 
-void hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART) {
+int hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART) {
 
 
 	static const uint8_t temp_integer = 0x1F;
@@ -152,7 +152,7 @@ void hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART
 
 	buf[0] = temp_EN;
 	buf[1] = 1; //R/W-Bit = 1 für lesen
-	uint8_t str_tmp[21] ="";
+
 
 	/**
 	 *  We set HEARTRATE4_ADDR << 1 in I2C_Master_Transmit to start the communication with the click module,  and enable
@@ -194,20 +194,10 @@ void hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART
 
 	float floatSum = buf[0] + 0.0625 * buf[1];
 
-	// Send the Chip-Temperature to our Webserver, and save it in our Database
-	wifi_click_send_test(floatSum);
 
 
 
-	// Nonblocking Function
-	// Print temperature
-	if (HAL_UART_Transmit(&handleUART, str_tmp, sprintf((char *) str_tmp, "%d\\n\r", (int) floatSum), 1000) == HAL_ERROR)
-	{
-		Error_Handler();
-	}
-
-
-
+	return (int) floatSum;
 
 }
 

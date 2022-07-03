@@ -53,7 +53,7 @@ void wifi_click_init(void) {
 	HAL_UART_Transmit(&huart2, (uint8_t*)RX_Buffer, strlen(RX_Buffer), HAL_MAX_DELAY);
 }
 
-void wifi_click_send_test(float chipTemp) {
+void wifi_click_send_test(int chipTemp, int heartRate) {
 
 //  printf("starte wifi_click_send_test...\n");  //TODO: DELETE
 //	char AT_CIPSTART[]="AT+CIPSTART=\"TCP\",\"192.168.1.69\",6000\r\n";  //TODO: DELETE
@@ -74,8 +74,6 @@ void wifi_click_send_test(float chipTemp) {
 
 	char buf[155] = {0};
 
-	int heartR = (int) chipTemp;
-	int temp = 96;  //TODO: Replace with live value
 
 
 	char hrBuf[10] = {'0'};
@@ -83,10 +81,10 @@ void wifi_click_send_test(float chipTemp) {
 	char httpBody1[23] =  "temp=";
 	char httpBody2[15] =  "&heart_rate=";
 
-	snprintf(hrBuf, 10, "%d", heartR);
-	snprintf(tempBuf, 10, "%d", temp);
-	strcat(httpBody1, hrBuf);
-	strcat(httpBody2, tempBuf);
+	snprintf(hrBuf, 10, "%d", heartRate);
+	snprintf(tempBuf, 10, "%d", chipTemp);
+	strcat(httpBody1, tempBuf);
+	strcat(httpBody2, hrBuf);
 	strcat(httpBody1, httpBody2);
 	int lengthBody = strlen(httpBody1)+2;
 

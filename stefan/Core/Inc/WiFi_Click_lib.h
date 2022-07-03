@@ -9,6 +9,6 @@
 #define INC_WIFI_CLICK_LIB_H_
 
 void wifi_click_init();
-void wifi_click_send_test(float chipTemp);
+void wifi_click_send_test(int chipTemp, int heartRate);
 
 #endif /* INC_WIFI_CLICK_LIB_H_ */
