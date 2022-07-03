@@ -59,7 +59,7 @@ void init_8x8leds(void)
 	 write_register (0x0c,		0x00);							//  0 = initial power down (note to myself: y no set as define for start???)
 	 write_register (0x0c, 		0x01);							//  1 = activate 8x8
 	 write_register (0x0b, 		0x07);							//  scan limit register sets how many digits are displayed
-	 write_register (0x0a, 		0x03);							//  chooses brightness intensity (0x00 - 0xf)
+	 write_register (0x0a, 		0x07);							//  chooses brightness intensity (0x00 - 0xf)
 	 write_register (0x09, 		0x00);							//  no BCD encoding of digits
 	 write_register (0x0f, 		0x01);							//  tests display: all leds full
 	 write_register (0x0f, 		0x00);							//  disable testing display
