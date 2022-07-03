@@ -560,7 +560,7 @@ void StartHeartBeats(void *argument)
 	  if(osSemaphoreAcquire(sem_PRODUCE_SyncHandle, 100) ==osOK)
 	  {
 #endif
-
+#
 		printf("Task 2 is processing..\n");
 	//	osDelay(2000);
 

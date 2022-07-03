@@ -17,7 +17,7 @@
 //prepared strings with AT commands to be sent
 char AT_TEST[] = "AT\r\n";
 char AT_MODESEL[] = "AT+CWMODE=1\r\n";
-  char AT_SETIPSTATIC[] = "AT+CIPSTA=\"192.168.97.222\"\r\n";
+  char AT_SETIPSTATIC[] = "AT+CIPSTA=\"192.168.97.228\"\r\n";
 //char AT_WIFICONNECT[] = "AT+CWJAP=\"Magenta-6HQ256\",\"Password\"\r\n"; //replace SSID with the network name and PASSWORD with wifi password
 char AT_WIFICONNECT[] = "AT+CWJAP=\"AndroidAP6156\",\"Balou1407%\"\r\n";
 
@@ -94,7 +94,7 @@ void wifi_click_send_test(float chipTemp) {
 
 
 		snprintf(buf, 180, "POST /post-esp-data.php HTTP/1.1\r\n"
-	 	  	  	     "Host: 192.168.149.221\r\n"
+	 	  	  	     "Host: 192.168.97.221\r\n"
 	 	  	  	     "Content-Type: application/x-www-form-urlencoded\r\n"
 	                 "Content-Length: %d\r\n\r\n"
 					 "%s\r\n", lengthBody, httpBody1);

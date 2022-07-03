@@ -24,42 +24,18 @@ void checkInput(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART, uint
 			if(result != 0)
 			{
 
+				// Print Nack for negative acknowledge
+							if (HAL_UART_Transmit(&handleUART, (uint8_t *) nackStm32, strlen(nackStm32), 1000) == HAL_ERROR)
+							{
+								Error_Handler();
+							}
+
+
 				return;
 			}
 
 
 	if(ringBuffer[1] == 't') {
-
-
-/*		char *cmdt = NULL;
-		cmdt = (char *) ringBuffer;
-		char* comparisonCmdt = "#t,tempa\\n";
-
-		// Check each character from my input with the allowed command (#t,tempa\n).
-		int result = strcmp(comparisonCmdt, cmdt);*/
-
-
-
-
-/*		// Check each element from my input with the allowed command.
-		// If the input != 0, the command is forbidden and we return to our command prompt
-		if(result != 0)
-		{
-			// Print Nack for negative acknowledge
-			if (HAL_UART_Transmit(&handleUART, (uint8_t *) nackStm32, strlen(nackStm32), 1000) == HAL_ERROR)
-			{
-				Error_Handler();
-			}
-
-			// Start terminal with welcome message again
-			// TODO: Repeating code, maybe put it in a separate function, gives less lines of code
-			if (HAL_UART_Transmit(&handleUART, (uint8_t *)welcome, strlen(welcome), 1000) == HAL_ERROR)
-			{
-				Error_Handler();
-			}
-
-			return;
-		}*/
 
 
 		uint8_t temperature[] = "\r\n**** Temperature values measurement ****\n\r";
