@@ -36,6 +36,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+int temperature = 0;
+int heart_rate = 0;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,7 +55,14 @@ UART_HandleTypeDef huart2;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 750 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for wifiFetchTask */
+osThreadId_t wifiFetchTaskHandle;
+const osThreadAttr_t wifiFetchTask_attributes = {
+  .name = "wifiFetchTask",
+  .stack_size = 750 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* USER CODE BEGIN PV */
@@ -67,6 +76,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 void StartDefaultTask(void *argument);
+void wifi_fetch(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -132,11 +142,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	//connect to the wifi
-	wifi_click_init();
+  init_8x8leds(); // basically calling the config of max7219
+  // print the smiley
+  for(int y = 1; y < 9; y++)
+  {
+    write_register(y, special_chars[0][y-1]);
+  }
 
-	char *data = wifi_click_fetch_data(20);
-	wifi_click_fetch_data(20);
-	wifi_click_fetch_data(20);
+	wifi_click_init();
 
   /* USER CODE END 2 */
 
@@ -162,6 +175,9 @@ int main(void)
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of wifiFetchTask */
+  wifiFetchTaskHandle = osThreadNew(wifi_fetch, NULL, &wifiFetchTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -383,23 +399,99 @@ static void MX_GPIO_Init(void)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  init_8x8leds(); // basically calling the config of max7219
-  printf("Hello from Task1!\n");
   /* Infinite loop */
   for(;;)
   {
-    for(int i = 0; i < 10; i++)
-        {
-         for(int y = 1; y < 9; y++)
-           {
-             write_register(y, digits[i][y-1]);
-           }
-         HAL_Delay(500); // note to myself: check for optimized delay in between
-         brightness_control(i);
-        }
-    osDelay(1);
+    if(heart_rate == 0) {
+      // Wait for a value to be fetched from the server
+      osDelay(10);
+      continue;
+    }
+
+    // ok, we have a value from the server, first let's print a heart
+    for(int y = 1; y < 9; y++)
+    {
+      write_register(y, special_chars[1][y-1]);
+    }
+    osDelay(500);
+
+    int n = heart_rate, reverse = 0, remainder;
+
+    while (n != 0) {
+      remainder = n % 10;
+      reverse = reverse * 10 + remainder;
+      n /= 10;
+    }
+
+    // now we have the reverse for heart_rate, so we can printf the first digit first ;)
+    int value = reverse;
+    while(value > 0) {
+      int digit = value % 10;
+      for(int y = 1; y < 9; y++)
+      {
+        write_register(y, digits[digit][y-1]);
+      }
+      osDelay(500); // note to myself: check for optimized delay in between
+      //brightness_control(i);
+      value /= 10;
+    }
+
+//    for(int i = 0; i < 10; i++)
+//    {
+//      for(int y = 1; y < 9; y++)
+//      {
+//        write_register(y, digits[i][y-1]);
+//      }
+//      osDelay(500); // note to myself: check for optimized delay in between
+//      brightness_control(i);
+//    }
   }
   /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_wifi_fetch */
+/**
+* @brief Function implementing the wifiFetchTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_wifi_fetch */
+void wifi_fetch(void *argument)
+{
+  /* USER CODE BEGIN wifi_fetch */
+  /* Infinite loop */
+  for(;;)
+  {
+    char *res = wifi_click_fetch_data();
+
+    char *token;
+    for(int j = 1; ; j++ ) {
+      token = strsep(&res, "\r\n");
+      if(token == NULL) {
+        break;
+      }
+      if(strncmp(";", token, 1) == 0) {
+        char *sub_token;
+        for(int i = 1; ; i++ ) {
+          sub_token = strsep(&token, ";");
+          if(sub_token == NULL) {
+            break;
+          }
+          switch(i) {
+            case 3: temperature = atoi(sub_token);
+                break;
+            case 4: heart_rate = atoi(sub_token);
+                break;
+            default:
+              break;
+          }
+        }
+      }
+    }
+
+    osDelay(10);
+  }
+  /* USER CODE END wifi_fetch */
 }
 
 /**
