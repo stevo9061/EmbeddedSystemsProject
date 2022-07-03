@@ -71,8 +71,18 @@
 
 #endif
 
+//Is no longer used in the program, was created for test purposes only.
 void checkInput(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART, uint8_t ringBuffer[], uint8_t size);
-void hr4_test_partID(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART); //Is no longer used in the program, was created for test purposes only.
+
+//Is no longer used in the program, was created for test purposes only.
+void hr4_test_partID(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART);
+
+/**
+@brief We get here the chip temperature from heart rate module.
+@param handleI2C: I2C Handle
+@param handleUART: UART Handle
+@retval returns an (int) float
+*/
 int hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART);
 
 

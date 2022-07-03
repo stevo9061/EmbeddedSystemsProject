@@ -1,3 +1,18 @@
+/*
+* @author Stefan Bittgen, ic20b058
+* @date July 03, Year 2022
+*
+* Description:
+* The function 'checkInput' and 'hr4_test_partID' is not used in our final project.
+* The function 'hr4_get_chipTemp' returns the current Chip-Temperature from register '0x1F'.
+* The other functions are helper functions to initialize the Heart rate 4 module.
+*
+* Baudrate: 115200
+
+
+*/
+
+
 #include <h4lib.h>
 #include <stdlib.h>
 
@@ -138,8 +153,12 @@ void hr4_test_partID(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART)
 
 
 }
-
-
+/**
+@brief We get here the chip temperature from heart rate module.
+@param handleI2C: I2C Handle
+@param handleUART: UART Handle
+@retval returns an (int) float
+*/
 int hr4_get_chipTemp(I2C_HandleTypeDef handleI2C, UART_HandleTypeDef handleUART) {
 
 
@@ -234,9 +253,7 @@ uint8_t hr4_read_reg ( uint8_t reg, I2C_HandleTypeDef hi2c1handle )
 	return new_value;
 }
 
-/**
- * The function may not work properly, still needs to be tested.
- */
+
 void hr4_read_reg_multi ( uint8_t reg, uint8_t *buffer, uint8_t count, I2C_HandleTypeDef hi2c1handle)
 {
 	uint16_t addr = 0x57;
