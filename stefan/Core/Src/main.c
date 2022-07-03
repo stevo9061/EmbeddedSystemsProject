@@ -54,7 +54,7 @@ typedef StaticTask_t osStaticThreadDef_t;
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BUFFERSIZE 11
+#define BUFFERLENGTH 11
 #define RATE_SIZE 4							//Increase this for more averaging. 4 is good.
 #define USE_SEM
 /* USER CODE END PD */
@@ -117,7 +117,7 @@ void StartHeartBeats(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t ringBuffer[BUFFERSIZE]; // Receive input from the HAL_Uart_Receive() Function
+uint8_t ringBuffer[BUFFERLENGTH]; // Receive input from the HAL_Uart_Receive() Function
 bool read_f = false;
 bool stop_f = false;
 bool start_f = false;
