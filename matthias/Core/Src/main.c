@@ -2,7 +2,17 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @author         : Matthias Kurz
+  * @brief          : Connects via the WiFi click board to a server (via TCP/IP)
+  *                   to fetch vital data (heart reate and temperature) and
+  *                   display them on the attached 8x8 click board. The data
+  *                   are fetched with the HTTP protocol using a GET request.
+  *                   After the http GET response was fetched, it will be parsed
+  *                   (format should be in CSV format, data seperated by
+  *                   semicolon) and the data displayed on on the 8x8 click board.
+  *                   Each digit is display on its own, switching between the
+  *                   heart rate and the temperature. Depending on the vital
+  *                   values, the 8x8 screen might turn brighter or darker.
   ******************************************************************************
   * @attention
   *
@@ -36,8 +46,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-int temperature = 0;
-int heart_rate = 0;
+int temperature = 0; // holds the temperature fetched from the server
+int heart_rate = 0;  // holds the heart rate fetched from the server
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -141,14 +151,15 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-	//connect to the wifi
-  init_8x8leds(); // basically calling the config of max7219
-  // print the smiley
+  // Here we initialize the 8x8 click board
+  init_8x8leds();
+  // Let's print a smiley as placeholder until we receive data from the server we can display
   for(int y = 1; y < 9; y++)
   {
     write_register(y, special_chars[0][y-1]);
   }
 
+  // Now let's connect to the WiFi (but do not send data yet)
 	wifi_click_init();
 
   /* USER CODE END 2 */
@@ -391,7 +402,10 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN Header_StartDefaultTask */
 /**
-  * @brief  Function implementing the defaultTask thread.
+  * @brief  Task which updates the 8x8 click board with the current vital data.
+  * @note   If vital data are available from the server this tasks starts to display
+  * them on the 8x8 click board. It also adjusts the brightness of the LEDs depending on
+  * "good", "bad" or "average" vital values.
   * @param  argument: Not used
   * @retval None
   */
@@ -403,10 +417,13 @@ void StartDefaultTask(void *argument)
   for(;;)
   {
     if(heart_rate == 0) {
-      // Wait for a value to be fetched from the server
+      // We wait for a value to be fetched from the server...
+      // Her we do not change the "screen" yet.
       osDelay(10);
-      continue;
+      continue; // go back to the for loop
     }
+
+    // So from here on we do have vital data to display
 
     // Adjust brightness depending on heart_rate
     if(heart_rate < 50) {
@@ -417,15 +434,16 @@ void StartDefaultTask(void *argument)
       brightness_control(7);
     }
 
-    // ok, we have a value from the server, first let's print a heart
+    // ok, now that we have a value from the server, first let's print a heart
     for(int y = 1; y < 9; y++)
     {
       write_register(y, special_chars[1][y-1]);
     }
-    osDelay(500);
+    osDelay(500); // keep the heart for 500ms
 
+    // Logic to reverse an integer, so heart reate of 125 becomes 521
+    // This is needed so we can correctly display the heart rate digit by digit on the 8x8 click
     int n = heart_rate, reverse = 0, remainder, last_digit_zero = false;;
-
     while (n != 0) {
       remainder = n % 10;
       if(remainder==0) {
@@ -435,7 +453,7 @@ void StartDefaultTask(void *argument)
       n /= 10;
     }
 
-    // now we have the reverse for heart_rate, so we can printf the first digit first ;)
+    // Now we have the reverse for heart_rate, so we can printf digit by digit
     int value = reverse;
     while(value > 0) {
       int digit = value % 10;
@@ -443,16 +461,17 @@ void StartDefaultTask(void *argument)
       {
         write_register(y, digits[digit][y-1]);
       }
-      osDelay(500); // note to myself: check for optimized delay in between
+      osDelay(500); // Keep the digit for half a second
       value /= 10;
     }
     if(last_digit_zero) {
+      // If the last digit was zero we also have to display it (workaround because above we have modulo 10)
       for(int y = 1; y < 9; y++)
       {
         write_register(y, digits[0][y-1]);
       }
     }
-    osDelay(500);
+    osDelay(500); // Again keep 0 for half a second on the screen
 
     // Adjust brightness depending on temperature
     if(temperature < 30) {
@@ -470,6 +489,7 @@ void StartDefaultTask(void *argument)
     }
     osDelay(500);
 
+    // Reverse, same like above
     n = temperature;
     reverse = 0;
     last_digit_zero=false;
@@ -481,7 +501,7 @@ void StartDefaultTask(void *argument)
       reverse = reverse * 10 + remainder;
       n /= 10;
     }
-    // now we have the reverse for temp, so we can printf the first digit first ;)
+    // Now we have the reverse for temp, so we can printf digit by digit again
     value = reverse;
     while(value > 0) {
       int digit = value % 10;
@@ -506,7 +526,7 @@ void StartDefaultTask(void *argument)
 
 /* USER CODE BEGIN Header_wifi_fetch */
 /**
-* @brief Function implementing the wifiFetchTask thread.
+* @brief Task that (periodically) fetches the vital data from a server
 * @param argument: Not used
 * @retval None
 */
@@ -517,8 +537,10 @@ void wifi_fetch(void *argument)
   /* Infinite loop */
   for(;;)
   {
+    // Runs the HTTP GET request and saves the HTTP response
     char *res = wifi_click_fetch_data();
 
+    // Logic to split the response into lines and get the body (the line that starts with a semicolon)
     char *token;
     for(int j = 1; ; j++ ) {
       token = strsep(&res, "\r\n");
@@ -526,6 +548,8 @@ void wifi_fetch(void *argument)
         break;
       }
       if(strncmp(";", token, 1) == 0) {
+        // So we found the body (after skipping all the headers), now let's split
+        // the body, using semicolons as seperator (=csv format)
         char *sub_token;
         for(int i = 1; ; i++ ) {
           sub_token = strsep(&token, ";");
@@ -533,9 +557,9 @@ void wifi_fetch(void *argument)
             break;
           }
           switch(i) {
-            case 3: temperature = atoi(sub_token);
+            case 3: temperature = atoi(sub_token); // we found the "field with the temperature
                 break;
-            case 4: heart_rate = atoi(sub_token);
+            case 4: heart_rate = atoi(sub_token); // we found the "field with the heart rate
                 break;
             default:
               break;
