@@ -408,6 +408,15 @@ void StartDefaultTask(void *argument)
       continue;
     }
 
+    // Adjust brightness depending on heart_rate
+    if(heart_rate < 50) {
+      brightness_control(2);
+    } else if(heart_rate > 100) {
+      brightness_control(15);
+    } else {
+      brightness_control(7);
+    }
+
     // ok, we have a value from the server, first let's print a heart
     for(int y = 1; y < 9; y++)
     {
@@ -435,7 +444,6 @@ void StartDefaultTask(void *argument)
         write_register(y, digits[digit][y-1]);
       }
       osDelay(500); // note to myself: check for optimized delay in between
-      //brightness_control(i);
       value /= 10;
     }
     if(last_digit_zero) {
@@ -445,6 +453,15 @@ void StartDefaultTask(void *argument)
       }
     }
     osDelay(500);
+
+    // Adjust brightness depending on temperature
+    if(temperature < 30) {
+      brightness_control(2);
+    } else if(temperature > 40) {
+      brightness_control(15);
+    } else {
+      brightness_control(7);
+    }
 
     // Print smiley to indicate temperature is coming now
     for(int y = 1; y < 9; y++)
